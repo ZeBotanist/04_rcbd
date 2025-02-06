@@ -321,7 +321,24 @@ Remember that it is at this level that we establish the hierarchy of how our pai
 
 Let's extract it by comparing everything to everything else.
 ```{r interaction means all}
-rcbd_means_all 
+rcbd_means_all <- emmeans(rcbd_mod, ~nrate_kgha: krate_kgha)
+
+
+# or you could run this: this restricts comaprisons to a given nitrogen rate
+#rcbd_means_all <- emmeans(rcbd_mod, ~nrate_kgha| krate_kgha)
+#this what compare the 3 n rates within a given one of the three k rates
+
+#or to loook the other way around : this restricts comaprisons to a given k rate
+#rcbd_means_all <- emmeans(rcbd_mod, ~krate_kgha| nrate_kgha)
+
+
+# if a three way interaction was significantthen we could :
+#rcbd_means_all <- emmeans(rcbd_mod, ~nrate_kgha: krate_kgha: prate_kgha)
+
+#could also create more sturcture with complicated experiments 
+#rcbd_means_all <- emmeans(rcbd_mod, ~nrate_kgha: krate_kgha | prate_kgha)
+
+#if interaction arent significant but main affect are you could do: ...
 
 rcbd_means_all
 ```
@@ -333,7 +350,12 @@ Now that we extracted means, let's perform pairwise comparisons among them.
 rcbd_cld_all <- cld(rcbd_means_all, 
                    reversed=T, 
                    adjust="none",
-               Letters=letters)
+               Letters=letters,
+               alpha = 0.05
+               )
+
+
+#install.packages("multcompView")
 
 rcbd_cld_all
 ```
@@ -341,8 +363,15 @@ rcbd_cld_all
 Let's do some light wrangling here to be able to plot these.  
 
 ```{r selected pwc}
-rcbd_cld_selected <- rcbd_cld_all 
+rcbd_cld_selected <- rcbd_cld_all %>%
+  as.data.frame() %>%
+  mutate(letter = trimws(.group)) %>%
+  mutate(trtname = paste0(nrate_kgha, "+", krate_kgha))
 
+
+
+#trimws. to trim white space in a particualr clumn, in this case its the .group column where there is some staggard white spacing
+#then we mutate and create a new column using paste fucntion to combine the contents of nrate and krate columns and show the values with a + in between them
 rcbd_cld_selected
 ```
 
@@ -351,6 +380,60 @@ Let's plot our results, including both **raw data** (for allowing our audience t
 Let's make this plot publication ready.  
 
 ```{r rcbd final plot}
+ggplot() + 
+  geom_boxplot(data = rcbd_dfw,
+               aes(x = trtname, 
+                   y = yield_kgha,
+                   fill = trtname)
+                   ) +
+  geom_jitter(data= rcbd_dfw,
+              aes(x = trtname, y = yield_kgha,
+                  color = trtname
+                  ),
+              alpha = 0.6
+              ) +
+  geom_label(data = rcbd_cld_selected,
+            aes(x = trtname,
+                y = emmean,
+                label = letter 
+                ),
+            
+            size = 3, 
+            label.padding = unit(0.1, "lines")
+            ) +
+  
+#now changining tites 
+  labs(x = "N rate + K rate (kg/ha)",
+       y = " Yield(kg/ha)"
+       ) +
+#now changing colors (choosing viridis , either b,c,d based on type of data d for discrete variables (categorical variables, which trt name is: if variabel is continous you could use c or b ))
+  
+#could also use scale_clor_manual(values = c("red", "blue", "yellow" ..)) making sure to include enough colors for all variables on graph
+  scale_fill_viridis_d() + 
+  scale_colour_viridis_d() +
+  
+#now remove legend: theme_ for changing alot , theme() for changing one thing
+theme(legend.position = "none")
+
+  
+#here we need to datat frames one with aw dadta and one with pair wise comparisons   
+
+
+
+#while working under geom_label function,
+#use size to change size
+#use label.padding to change space of label (white space)
+
+
+
+#now exporting to file
+
+ggsave("../output/rcbd_means.png", 
+       height = 4, 
+       width = 6
+       )
+
+
 
 ```
 
